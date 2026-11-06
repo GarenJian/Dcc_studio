@@ -1,0 +1,4 @@
+# Test-only dependencies, installed automatically by run_tests.py.
+# Runtime dependencies are listed in requirements.txt and are NOT duplicated
+# here, so this file can be added to any existing environment safely.
+coverage>=7.6,<8

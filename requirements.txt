@@ -1,0 +1,7 @@
+# Runtime dependencies (Python 3.11 - 3.13)
+numpy>=2.0
+scipy>=1.14
+matplotlib>=3.9
+pandas>=2.2
+PyQt6>=6.7
+h5py>=3.11

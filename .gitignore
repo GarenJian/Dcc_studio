@@ -1,0 +1,42 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Local configuration and generated results. Anchored to the project root so
+# directories named "results" inside tests/fixtures/ stay tracked.
+config.json
+/results/
+outputs/
+*.log
+
+# Large data files
+*.mat
+*.nii
+*.npy
+*.npz
+*.dscalar.nii
+*.dlabel.nii
+
+# Reference dataset (~146 MB) is distributed separately, not committed.
+# Download it into tests/fixtures/ (see docs/test.md for the link).
+/tests/fixtures/
+
+# Test reports and coverage artefacts
+reports/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# PyInstaller output
+build/
+dist/
+
+# OS
+.DS_Store
+Thumbs.db
