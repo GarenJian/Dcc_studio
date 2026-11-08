@@ -1,0 +1,107 @@
+name: Build Windows exe and publish release
+
+# Two ways to publish a release containing DCCStudio.exe + source code:
+#   A. Push a v* tag:  git tag v1.0.0 && git push origin v1.0.0
+#   B. Actions tab -> Run workflow -> type a new tag. No local git command is
+#      needed: this job creates and pushes the tag itself.
+# GitHub attaches "Source code (zip)" and "Source code (tar.gz)" to every
+# release automatically, so there is no separate source upload step.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to create, e.g. v1.0.0'
+        required: true
+        type: string
+      verify:
+        description: 'Also run the frozen self-test (builds a second temporary exe; needs Qt GUI on the runner)'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-build.txt
+
+      # PyInstaller needs the runtime packages importable during Analysis.
+      # build_exe.py installs requirements-build.txt (PyInstaller) itself.
+      - name: Install runtime dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements.txt
+
+      - name: Resolve release tag
+        id: meta
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            echo "tag=$INPUT_TAG" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=$REF_NAME" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create tag on manual runs
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "ERROR: tag $TAG already exists; pick a new tag or push the tag instead." >&2
+            exit 1
+          fi
+          git tag "$TAG"
+          git push origin "refs/tags/$TAG"
+
+      - name: Build DCCStudio.exe
+        shell: bash
+        env:
+          VERIFY: ${{ inputs.verify }}
+        run: |
+          if [ "$VERIFY" = "true" ]; then
+            python build_exe.py --clean --verify
+          else
+            python build_exe.py --clean
+          fi
+
+      - name: Check artifact
+        shell: bash
+        run: |
+          test -s dist/DCCStudio.exe
+          ls -lh dist/DCCStudio.exe
+
+      - name: Publish release
+        shell: bash
+        env:
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          gh release create "$TAG" dist/DCCStudio.exe \
+            --title "DCC Studio $TAG" \
+            --generate-notes
